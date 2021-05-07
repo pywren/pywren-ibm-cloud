@@ -4,7 +4,13 @@
 
 IBM Code Engine exposes both Knative and Kubernetes Job Descriptor API. Lithops supports both of them. Follow IBM Code Engine documentation to get more details on the difference between those APIs.
 
-###  Initial requirements
+###  Installation
+
+#### Option 1 (IBM CLoud Dashboard):
+1. Navigate to the [IBM Cloud Code Engine dashboard](https://cloud.ibm.com/codeengine/landing) and create a new project in your preferred region.
+
+
+#### Option 2 (IBM CLoud CLI tool):
 In this step you are required to install IBM Cloud CLI tool, Code Engine plugin and create new Code Engine project
 
 1. Install the [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cli-getting-started):
@@ -13,7 +19,7 @@ In this step you are required to install IBM Cloud CLI tool, Code Engine plugin 
    curl -sL https://ibm.biz/idt-installer | bash
    ```
 
-2. Login to your account (IBM Code Engine is currently present on us_south region, so login to this region)
+2. Login to your account, pointing to the region you want to create a project
 
    ```bash
    ibmcloud login -r us-south
@@ -36,29 +42,64 @@ In this step you are required to install IBM Cloud CLI tool, Code Engine plugin 
    ```bash
    ibmcloud ce project select --name myproject
    ```
-   
-6. Locate the kubernetes config file:
+  
+### Configuration
+
+#### Option 1 (IBM IAM):
+1. If you don't have an IAM API key created, navigate to the [IBM IAM dashboard](https://cloud.ibm.com/iam/apikeys).
+
+2. Click `Create an IBM Cloud API Key` and provide the necessary information.
+
+3. Copy the generated IAM API key (You can only see the key the first time you create it, so make sure to copy it).
+
+4. Locate your project namespace name.
+
+5. Edit your lithops config and add the following keys:
+    ```yaml
+    serverless:
+        backend: code_engine
+        
+    ibm:
+        iam_api_key: <IAM_API_KEY>
+       
+    code_engine:
+        namespace  : <NAMESPACE>
+        region     : <REGION>
+    ```
+
+#### Option 2 (KUBECONFIG file):
+
+1. Locate the kubernetes config file using the IBM CLoud CLI:
 
    ```bash
    ibmcloud ce project current
    ```
 
-7. Set or copy the KUBECONFIG environment variable as printed in the previous step:
+2. Set or copy the KUBECONFIG environment variable as printed in the previous step:
 
    ```bash
    export KUBECONFIG=<PATH TO YAML FILE>
    ```
 
-8. [Install the Docker CE version](https://docs.docker.com/get-docker/).
-    Note that Lithops automatically builds the default runtime the first time you run a script. For this task it uses the **docker** command installed locally in your machine.
+3. Edit your lithops config and add the following keys:
+    ```yaml
+    serverless:
+        backend: code_engine
+       
+    code_engine:
+        kubecfg_path: <PATH TO CONFIG YAML FILE>
+    ```
 
-9. Login to your docker account:
+### Runtime
+
+To work with Code Engine there is need to use dedicated runtime. Lithops automatically builds the default runtime the first time you run a script. For this task it uses the **docker** command installed locally in your machine. Alternatively, you can use a pre-built runtime listed below.
+
+1. [Install the Docker CE version](https://docs.docker.com/get-docker/).
+
+2. Login to your docker account:
    ```bash
    docker login
    ```
-### Lithops using Kubernetes Job API of Code Engine
-
-To work with Code Engine there is need to use dedicated runtime. You can either use default runtime that we maintain or alternatively create new runtime with required dependencies.
 
 |Default runtime name| Python version | What is included | Lithops version |
 |----|-----|----|-----|
@@ -74,30 +115,21 @@ To work with Code Engine there is need to use dedicated runtime. You can either 
 |ibmfunctions/lithops-ce-v385:232 | 3.8 | [included](../../runtime/code_engine/requirements.txt) | 2.3.2 |
 |ibmfunctions/lithops-ce-v385:233 | 3.8 | [included](../../runtime/code_engine/requirements.txt) | 2.3.3 |
 
-If you need to create new runtime, please follow [Building and managing Lithops runtimes to run the functions](../../runtime/)
+If you need to create custom runtime, please follow [Building and managing Lithops runtimes to run the functions](../../runtime/)
 
 
-#### Edit your lithops config and add the following keys:
-
-   ```yaml
-   serverless:
-       backend: code_engine
-       runtime: <RUNTIME NAME>
-
-   code_engine:
-       kubecfg_path: <PATH TO CONFIG YAML FIlE>
-   ```
-
-#### Summary of configuration keys for Job API:
+### Summary of configuration keys for Job API:
 
 |Group|Key|Default|Mandatory|Additional info|
 |---|---|---|---|---|
+|code_engine | namespace |  |no | Namespace name|
+|code_engine | region |  | no | Cluster region. One of *us-south*, *jp-tok*, *eu-de*, *eu-gb* |
 |code_engine | kubecfg_path | |no | Path to kubecfg file. Mandatory if config file not in `~/.kube/config` or KUBECONFIG env var not present|
 |code_engine | container_registry |  docker.io | no | container registry url|
 |code_engine | runtime |  |no | Docker image name.|
 |code_engine | runtime_cpu | 0.125 |no | CPU limit. Default 0.125vCPU. See [valid combinations](https://cloud.ibm.com/docs/codeengine?topic=codeengine-mem-cpu-combo) |
 |code_engine | runtime_memory | 256 |no | Memory limit in MB. Default 256Mi. See [valid combinations](https://cloud.ibm.com/docs/codeengine?topic=codeengine-mem-cpu-combo) |
-|knative | runtime_timeout | 600 |no | Runtime timeout in seconds. Default 600 seconds |
+|code_engine | runtime_timeout | 600 |no | Runtime timeout in seconds. Default 600 seconds |
 
 
 ### Lithops using Knative API of Code Engine

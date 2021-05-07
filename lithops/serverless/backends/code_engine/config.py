@@ -38,6 +38,9 @@ FH_ZIP_LOCATION = os.path.join(os.getcwd(), 'lithops_codeengine.zip')
 
 VALID_CPU_VALUES = [0.125, 0.25, 0.5, 1, 2, 4, 6, 8]
 VALID_MEMORY_VALUES = [256, 512, 1024, 2048, 4096, 8192, 12288, 16384, 24576, 32768]
+VALID_REGIONS = ['us-south', 'jp-tok', 'eu-de', 'eu-gb']
+
+CLUSTER_URL = 'https://proxy.{}.codeengine.cloud.ibm.com'
 
 DOCKERFILE_DEFAULT = """
 RUN apt-get update && apt-get install -y \
@@ -207,6 +210,11 @@ def load_config(config_data):
     if runtime_memory not in VALID_MEMORY_VALUES:
         raise Exception('{} is an invalid runtime memory value in MB. Set one of: '
                         '{}'.format(runtime_memory, VALID_MEMORY_VALUES))
+
+    region = config_data['code_engine'].get('region')
+    if region and region not in VALID_REGIONS:
+        raise Exception('{} is an invalid region name. Set one of: '
+                        '{}'.format(region, VALID_REGIONS))
 
     if 'workers' not in config_data['lithops'] or \
        config_data['lithops']['workers'] > MAX_CONCURRENT_WORKERS:

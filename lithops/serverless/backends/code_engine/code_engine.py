@@ -55,31 +55,15 @@ class CodeEngineBackend:
 
         self.kubecfg_path = code_engine_config.get('kubecfg_path')
         self.user_agent = code_engine_config['user_agent']
+
         self.iam_api_key = code_engine_config.get('iam_api_key', None)
+        self.namespace = code_engine_config.get('namespace', None)
+        self.region = code_engine_config.get('region', None)
 
-        try:
-            config.load_kube_config(config_file=self.kubecfg_path)
-            contexts = config.list_kube_config_contexts(config_file=self.kubecfg_path)
-            current_context = contexts[1].get('context')
-            self.namespace = current_context.get('namespace', 'default')
-            self.cluster = current_context.get('cluster')
-            self.code_engine_config['namespace'] = self.namespace
-            self.code_engine_config['cluster'] = self.cluster
-            self.is_incluster = False
-        except Exception:
-            logger.debug('Loading incluster config')
-            config.load_incluster_config()
-            self.namespace = self.code_engine_config.get('namespace', 'default')
-            self.cluster = self.code_engine_config.get('cluster', 'default')
-            self.is_incluster = True
-
-        logger.debug("Set namespace to {}".format(self.namespace))
-        logger.debug("Set cluster to {}".format(self.cluster))
-
-        self.capi = client.CustomObjectsApi()
-        self.coreV1Api = client.CoreV1Api()
-
-        if self.iam_api_key:
+        if self.namespace and self.region and self.iam_api_key:
+            self.cluster = ce_config.CLUSTER_URL.format(self.region)
+            configuration = client.Configuration()
+            configuration.host = self.cluster
             token = self.code_engine_config.get('token', None)
             token_expiry_time = self.code_engine_config.get('token_expiry_time', None)
             self.ibm_token_manager = IBMTokenManager(self.iam_api_key,
@@ -88,8 +72,31 @@ class CodeEngineBackend:
             token, token_expiry_time = self.ibm_token_manager.get_token()
             self.code_engine_config['token'] = token
             self.code_engine_config['token_expiry_time'] = token_expiry_time
-            self.capi.api_client.configuration.api_key['authorization'] = 'Bearer ' + token
-            self.coreV1Api.api_client.configuration.api_key['authorization'] = 'Bearer ' + token
+            configuration.api_key = {"authorization": "Bearer " + token}
+            client.Configuration.set_default(configuration)
+
+        else:
+            try:
+                config.load_kube_config(config_file=self.kubecfg_path)
+                contexts = config.list_kube_config_contexts(config_file=self.kubecfg_path)
+                current_context = contexts[1].get('context')
+                self.namespace = current_context.get('namespace')
+                self.cluster = current_context.get('cluster')
+                self.code_engine_config['namespace'] = self.namespace
+                self.code_engine_config['cluster'] = self.cluster
+                self.is_incluster = False
+            except Exception:
+                logger.debug('Loading incluster config')
+                config.load_incluster_config()
+                self.namespace = self.code_engine_config.get('namespace')
+                self.cluster = self.code_engine_config.get('cluster')
+                self.is_incluster = True
+
+        logger.debug("Set namespace to {}".format(self.namespace))
+        logger.debug("Set cluster to {}".format(self.cluster))
+
+        self.capi = client.CustomObjectsApi()
+        self.coreV1Api = client.CoreV1Api()
 
         try:
             self.region = self.cluster.split('//')[1].split('.')[1]
